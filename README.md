@@ -32,6 +32,12 @@ Client (`forge`): `registerTab({id, label, order, render(el, {repo, query})})`,
 `contribute('repo-actions', ({repo}) => node | html)`, `registerRenderer({match, render})`,
 `api()`, `refresh()`, `navigate()`.
 
-See `plugins/issues` (new tab + routes) and `plugins/stars` (decorator + UI slot).
+`app.raw(/regex/, (req, res, url) => ...)` takes over a non-JSON route (used by `plugins/clone` for git smart HTTP).
+
+See `plugins/issues` (new tab + routes) and `plugins/stars` (decorator + UI slot), `plugins/clone` (raw protocol route + Clone button).
+
+## Cloning
+
+`git clone http://localhost:3000/<repo>.git` works (read-only; push is refused until auth exists).
 
 `Forge.html` is the original hardcoded prototype, kept for reference.

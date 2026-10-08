@@ -9,7 +9,7 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css
 const httpError = (status, message) => Object.assign(new Error(message), { status });
 
 function createApp({ dataDir, pluginsDir, publicDir, config = {} }) {
-  const routes = [], listeners = {}, decorators = {}, clients = [];
+  const routes = [], rawRoutes = [], listeners = {}, decorators = {}, clients = [];
 
   const app = {
     dataDir, config, httpError,
@@ -20,6 +20,9 @@ function createApp({ dataDir, pluginsDir, publicDir, config = {} }) {
       const re = new RegExp('^' + pattern.replace(/:(\w+)/g, (_, k) => (keys.push(k), '([^/]+)')) + '$');
       routes.push({ method, re, keys, handler });
     },
+
+    // raw(/regex/, (req, res, url) => ...) takes over the response; for non-JSON protocols (e.g. git over HTTP).
+    raw(re, handler) { rawRoutes.push({ re, handler }); },
 
     on(event, fn) { (listeners[event] ||= []).push(fn); },
     async emit(event, payload) { for (const fn of listeners[event] || []) await fn(payload); },
@@ -83,6 +86,8 @@ function createApp({ dataDir, pluginsDir, publicDir, config = {} }) {
   async function handle(req, res) {
     const url = new URL(req.url, 'http://localhost');
     try {
+      const raw = rawRoutes.find(r => r.re.test(url.pathname));
+      if (raw) return await raw.handler(req, res, url);
       if (url.pathname === '/api/manifest') return send(res, 200, { plugins: clients });
       if (url.pathname.startsWith('/api/')) {
         for (const r of routes) {
