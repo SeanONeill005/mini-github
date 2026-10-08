@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Forge · Where code lives</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header><div class="bar">
+<a class="logo" href="#/"><i></i>Forge</a>
+<input id="gs" class="field" style="max-width:280px" placeholder="Search repositories" aria-label="Search repositories">
+<span class="sp"></span>
+<button class="btn" id="th" aria-label="Toggle theme">Theme</button>
+<button class="btn p" id="new">New repository</button>
+</div></header>
+<main id="app"></main>
+
+<dialog id="dlg"><form method="dialog">
+<h3>Create a new repository</h3>
+<label for="rn">Name</label><input id="rn" class="field" placeholder="my-project">
+<label for="rd">Description</label><input id="rd" class="field" placeholder="What does it do?">
+<p id="re" class="err"></p>
+<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px">
+<button class="btn" type="button" id="rc">Cancel</button>
+<button class="btn p" type="submit">Create repository</button></div>
+</form></dialog>
+
+<script type="module" src="/app.js"></script>
+</body>
+</html>
