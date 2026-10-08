@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Forge · Where code lives</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f6f7f9;--panel:#fff;--line:#d9dde3;--text:#1b1f27;--mute:#5d6675;--acc:#0b7a75;--accbg:#e2f3f2;--hov:#eef1f5;--ok:#1a7f37;--bad:#b42318;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12161c;--panel:#1a2029;--line:#2c3541;--text:#e6e9ee;--mute:#95a0b0;--acc:#3dc2ba;--accbg:#173a3a;--hov:#232b36;--ok:#3fb950;--bad:#f97066}}
+:root[data-theme="dark"]{--bg:#12161c;--panel:#1a2029;--line:#2c3541;--text:#e6e9ee;--mute:#95a0b0;--acc:#3dc2ba;--accbg:#173a3a;--hov:#232b36;--ok:#3fb950;--bad:#f97066}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 'IBM Plex Sans',system-ui,sans-serif}
+a{color:var(--acc);text-decoration:none;cursor:pointer}a:hover{text-decoration:underline}
+button,input,textarea,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+header{background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
+.bar{max-width:1080px;margin:0 auto;padding:10px 16px;display:flex;gap:12px;align-items:center}
+.logo{font-weight:600;font-size:18px;color:var(--text);display:flex;gap:8px;align-items:center;cursor:pointer}
+.logo i{width:22px;height:22px;border-radius:6px;background:var(--acc);display:inline-block;position:relative}
+.logo i::after{content:"";position:absolute;inset:6px;border:2px solid var(--panel);border-radius:50%}
+.sp{flex:1}
+main{max-width:1080px;margin:0 auto;padding:20px 16px 60px}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:5px 12px;cursor:pointer;font-weight:500}
+.btn:hover{background:var(--hov)}
+.btn.p{background:var(--acc);border-color:var(--acc);color:var(--panel)}
+.btn.p:hover{filter:brightness(1.08);background:var(--acc)}
+.field{width:100%;border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:7px 10px}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.row{display:flex;gap:12px;align-items:center;padding:12px 16px;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.row.h:hover{background:var(--hov)}
+.mute{color:var(--mute)}.sm{font-size:13px}
+.pill{border:1px solid var(--line);border-radius:20px;padding:0 8px;font-size:12px;color:var(--mute)}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:5px}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:16px 0}
+.tab{padding:8px 14px;cursor:pointer;border-bottom:2px solid transparent;color:var(--mute);background:none;border:0;border-bottom:2px solid transparent}
+.tab.on{color:var(--text);border-bottom-color:var(--acc);font-weight:600}
+.title{font-size:22px;margin:0;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.crumb{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
+.mono,pre{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:13px}
+.code{display:flex;overflow-x:auto}
+.code pre{margin:0;padding:10px 14px;line-height:1.55}
+.ln{color:var(--mute);text-align:right;user-select:none;border-right:1px solid var(--line)}
+.readme{padding:6px 24px 20px}.readme h1,.readme h2{border-bottom:1px solid var(--line);padding-bottom:6px}
+.grid{display:grid;grid-template-columns:1fr 280px;gap:24px}
+@media(max-width:760px){.grid{grid-template-columns:1fr}.hide-sm{display:none}}
+.state{width:10px;height:10px;border-radius:50%;flex:none}
+.empty{padding:36px 16px;text-align:center;color:var(--mute)}
+h3{margin:0 0 8px}
+.hero{padding:28px 0 8px}.hero h1{font-size:32px;margin:0 0 6px;letter-spacing:-.4px}
+dialog{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:10px;width:min(460px,92vw);padding:20px}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+label{display:block;font-weight:500;margin:12px 0 4px}
+</style>
+</head>
+<body>
+<header><div class="bar">
+<span class="logo" onclick="go('home')"><i></i>Forge</span>
+<input id="gs" class="field" style="max-width:280px" placeholder="Search repositories" aria-label="Search repositories" oninput="S.q=this.value;go('home',true)">
+<span class="sp"></span>
+<button class="btn" id="th" onclick="theme()" aria-label="Toggle theme">Theme</button>
+<button class="btn p" onclick="openNew()">New repository</button>
+</div></header>
+<main id="app"></main>
+
+<dialog id="dlg"><form method="dialog" onsubmit="return false">
+<h3>Create a new repository</h3>
+<label for="rn">Name</label><input id="rn" class="field" placeholder="my-project">
+<label for="rd">Description</label><input id="rd" class="field" placeholder="What does it do?">
+<label for="rl">Language</label>
+<select id="rl" class="field"><option>JavaScript</option><option>Python</option><option>Go</option><option>Rust</option></select>
+<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px">
+<button class="btn" onclick="dlg.close()">Cancel</button>
+<button class="btn p" onclick="createRepo()">Create repository</button></div>
+</form></dialog>
+
+<dialog id="bd"><form method="dialog" onsubmit="return false">
+<h3>Create a branch</h3>
+<label for="bn">Branch name</label><input id="bn" class="field" placeholder="feature-login" onkeydown="if(event.key==='Enter')createBranch()">
+<p class="mute sm">Copies all files from <b id="bf"></b>.</p><p id="be" class="sm" style="color:var(--bad);margin:0"></p>
+<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+<button class="btn" onclick="bd.close()">Cancel</button>
+<button class="btn p" onclick="createBranch()">Create branch</button></div>
+</form></dialog>
+
+<script>
+const LC={JavaScript:'#e3b341',Python:'#3572A5',Go:'#00ADD8',Rust:'#c9573a'};
+const S={view:'home',q:'',repo:null,tab:'code',path:[],file:null,branch:'main',edit:null,
+repos:[
+{name:'tidepool',desc:'A tiny key-value store with an append-only log.',lang:'Go',stars:412,starred:false,
+files:{'README.md':'# tidepool\n\nA tiny key-value store with an append-only log.\n\n## Quick start\n\nRun `go run ./cmd/tide` and open the prompt.\n\n## Why\n\nSmall enough to read in an afternoon.',
+cmd:{'tide':{'main.go':'package main\n\nimport "tidepool/store"\n\nfunc main() {\n\ts := store.Open("data.log")\n\tdefer s.Close()\n\ts.Set("hello", "world")\n}\n'}},
+store:{'store.go':'package store\n\ntype Store struct {\n\tidx map[string]int64\n}\n\nfunc Open(p string) *Store {\n\treturn &Store{idx: map[string]int64{}}\n}\n','log.go':'package store\n\n// append writes a record to the end of the log.\nfunc (s *Store) append(k, v string) {}\n'},
+'go.mod':'module tidepool\n\ngo 1.22\n'},
+issues:[{t:'Compact the log on startup',by:'mira',open:true},{t:'Add TTL support for keys',by:'dev-oz',open:true},{t:'Typo in quick start',by:'lena',open:false}]},
+{name:'lantern',desc:'Static site generator that builds docs in milliseconds.',lang:'Rust',stars:1280,starred:true,
+files:{'README.md':'# lantern\n\nStatic site generator that builds docs in milliseconds.\n\n## Install\n\nRun `cargo install lantern`.',
+src:{'main.rs':'use std::fs;\n\nfn main() {\n    let pages = fs::read_dir("docs").unwrap();\n    println!("building {} pages", pages.count());\n}\n'},
+'Cargo.toml':'[package]\nname = "lantern"\nversion = "0.4.1"\n'},
+issues:[{t:'Live reload drops the first change',by:'kofi',open:true}]},
+{name:'pocket-notes',desc:'Markdown notes that sync between devices.',lang:'JavaScript',stars:96,starred:false,
+files:{'README.md':'# pocket-notes\n\nMarkdown notes that sync between devices.',
+src:{'sync.js':'export async function sync(local, remote) {\n  const diff = local.filter(n => !remote.has(n.id));\n  for (const n of diff) await remote.put(n);\n  return diff.length;\n}\n'},
+'package.json':'{\n  "name": "pocket-notes",\n  "version": "1.0.0"\n}\n'},issues:[]}
+]};
+const $=s=>document.querySelector(s),esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const cur=()=>S.repos.find(r=>r.name===S.repo);
+function theme(){const r=document.documentElement,d=getComputedStyle(r).getPropertyValue('--bg').trim()==='#12161c';r.dataset.theme=d?'light':'dark';try{localStorage.setItem('forge-theme',r.dataset.theme)}catch(e){}}
+try{const t=localStorage.getItem('forge-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}
+function go(v,keep){S.view=v;if(v==='home'&&!keep){S.q='';$('#gs').value=''}render();if(!keep)scrollTo(0,0)}
+function open_(n){S.repo=n;S.tab='code';S.path=[];S.file=null;S.branch='main';S.edit=null;go('repo')}
+function star(n){const r=S.repos.find(x=>x.name===n);r.starred=!r.starred;r.stars+=r.starred?1:-1;render()}
+function T(r){r.br=r.br||{main:r.files};r.lg=r.lg||{main:['Initial commit']};return r.br[S.branch]||(S.branch='main',r.br.main)}
+function node(r){let n=T(r);for(const p of S.path)n=n[p];return n}
+function openNew(){$('#rn').value='';$('#rd').value='';dlg.showModal();$('#rn').focus()}
+function createRepo(){let n=$('#rn').value.trim().toLowerCase().replace(/[^a-z0-9._-]+/g,'-');
+if(!n){$('#rn').focus();return}
+if(S.repos.some(r=>r.name===n)){alert('A repository named "'+n+'" already exists. Choose a different name.');return}
+const d=$('#rd').value.trim();
+S.repos.unshift({name:n,desc:d,lang:$('#rl').value,stars:0,starred:false,files:{'README.md':'# '+n+'\n\n'+(d||'Add a description to your project.')},issues:[]});
+dlg.close();open_(n)}
+function addIssue(){const t=$('#it').value.trim();if(!t){$('#it').focus();return}cur().issues.unshift({t,by:'you',open:true});render()}
+function toggleIssue(i){const x=cur().issues[i];x.open=!x.open;render()}
+function toolbar(r,lg,isF){const bs=Object.keys(r.br);
+return `<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:4px"><select class="field" style="width:auto" aria-label="Switch branch" onchange="S.branch=this.value;S.path=[];S.edit=null;render()">${bs.map(b=>`<option ${b===S.branch?'selected':''}>${esc(b)}</option>`).join('')}</select><button class="btn" onclick="openBranch()">New branch</button>${S.branch!=='main'?'<button class="btn" onclick="delBranch()">Delete branch</button>':''}<span class="sp"></span><span class="mute sm">${esc(lg[0])} · ${lg.length} commits · ${bs.length} branches</span>${isF?'':'<button class="btn" onclick="startEdit(true)">Add file</button>'}</div>`}
+function editor(r,n){const nw=S.edit.isNew,f=esc(S.path.at(-1)||'');
+return `<div class="box"><div class="row sm"><b>${nw?'New file on':'Editing '+f+' on'} ${esc(S.branch)}</b></div><div style="padding:0 16px 16px">${nw?'<label for="ef">File name</label><input id="ef" class="field mono" placeholder="notes.txt">':''}<label for="ec">Contents</label><textarea id="ec" class="field mono" rows="14" spellcheck="false">${nw?'':esc(n)}</textarea><label for="em">Commit message</label><input id="em" class="field" placeholder="${nw?'Add file':'Update '+f}"><p id="ee" class="sm" style="color:var(--bad);margin:8px 0 0"></p><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px"><button class="btn" onclick="S.edit=null;render()">Cancel</button><button class="btn p" onclick="commit()">Commit to ${esc(S.branch)}</button></div></div></div>`}
+function startEdit(nw){S.edit={isNew:nw,at:S.path.join('/')};render();setTimeout(()=>$(nw?'#ef':'#ec').focus(),0)}
+function commit(){const r=cur(),nw=S.edit.isNew,c=$('#ec').value.replace(/\n?$/,'\n'),m=$('#em').value.trim();let name,d;
+if(nw){name=$('#ef').value.trim().replace(/[\/\\]+/g,'-');if(!name){$('#ee').textContent='Enter a file name.';$('#ef').focus();return}d=node(r);if(name in d){$('#ee').textContent='"'+name+'" already exists here. Choose a different name or edit the existing file.';return}}
+else{name=S.path.at(-1);const p=S.path;S.path=p.slice(0,-1);d=node(r);S.path=p}
+d[name]=c;r.lg[S.branch].unshift(m||(nw?'Add ':'Update ')+name);if(nw)S.path.push(name);S.edit=null;render()}
+function openBranch(){$('#bn').value='';$('#be').textContent='';$('#bf').textContent=S.branch;bd.showModal();$('#bn').focus()}
+function createBranch(){const r=cur(),n=$('#bn').value.trim().toLowerCase().replace(/[^a-z0-9._-]+/g,'-');
+if(!n){$('#bn').focus();return}
+if(r.br[n]){$('#be').textContent='A branch named "'+n+'" already exists. Choose a different name.';return}
+r.br[n]=structuredClone(T(r));r.lg[n]=[...r.lg[S.branch]];S.branch=n;S.path=[];S.edit=null;bd.close();render()}
+function delBranch(){const r=cur();delete r.br[S.branch];delete r.lg[S.branch];S.branch='main';S.path=[];S.edit=null;render()}
+function md(t){return t.split('\n\n').map(b=>{b=esc(b).replace(/`([^`]+)`/g,'<code class="mono">$1</code>');
+if(b.startsWith('# '))return'<h1>'+b.slice(2)+'</h1>';if(b.startsWith('## '))return'<h2>'+b.slice(3)+'</h2>';return'<p>'+b+'</p>'}).join('')}
+function home(){const q=S.q.toLowerCase(),rs=S.repos.filter(r=>(r.name+r.desc).toLowerCase().includes(q));
+return`<div class="hero"><h1>Where code lives</h1><p class="mute">Host repositories, track issues, and read code in one place.</p></div>
+<div class="grid"><div><h3>Repositories <span class="pill">${rs.length}</span></h3><div class="box">
+${rs.length?rs.map(r=>`<div class="row h"><div style="flex:1;min-width:0"><a onclick="open_('${r.name}')"><b>you/${esc(r.name)}</b></a> <span class="pill">Public</span>
+<div class="mute sm">${esc(r.desc)||'No description'}</div><div class="mute sm" style="margin-top:4px"><span class="dot" style="background:${LC[r.lang]}"></span>${r.lang} &nbsp; ${r.stars} stars</div></div>
+<button class="btn sm" onclick="star('${r.name}')">${r.starred?'Starred':'Star'}</button></div>`).join(''):'<div class="empty">No repositories match "'+esc(S.q)+'". Try another name or create a new repository.</div>'}
+</div></div>
+<aside class="hide-sm"><h3>Recent activity</h3><div class="box">
+<div class="row sm"><span>Opened an issue in <b>tidepool</b></span></div>
+<div class="row sm"><span>Starred <b>lantern</b></span></div>
+<div class="row sm"><span>Pushed 3 commits to <b>pocket-notes</b></span></div></div></aside></div>`}
+function repo(){const r=cur(),n=node(r),isF=typeof n==='string',lg=r.lg[S.branch],open=r.issues.filter(i=>i.open).length;
+if(S.edit&&S.edit.at!==S.path.join('/'))S.edit=null;
+let body='';
+if(S.tab==='code'){
+const crumbs=toolbar(r,lg,isF)+`<div class="crumb mono"><a onclick="S.path=[];S.file=null;render()">${esc(r.name)}</a>${S.path.map((p,i)=>`/<a onclick="S.path=S.path.slice(0,${i+1});S.file=null;render()">${esc(p)}</a>`).join('')}</div>`;
+if(S.edit)body=crumbs+editor(r,n,isF);
+else if(isF){const lines=n.replace(/\n$/,'').split('\n');
+body=crumbs+`<div class="box"><div class="row sm"><b>${esc(S.path.at(-1))}</b><span class="mute">${lines.length} lines</span><span class="sp"></span><button class="btn sm" onclick="startEdit(false)">Edit file</button></div><div class="code"><pre class="ln">${lines.map((_,i)=>i+1).join('\n')}</pre><pre>${esc(lines.join('\n'))}</pre></div></div>`}
+else{const keys=Object.keys(n).sort((a,b)=>(typeof n[a]==='string')-(typeof n[b]==='string')||a.localeCompare(b));
+body=crumbs+`<div class="box">${S.path.length?`<div class="row h"><a onclick="S.path.pop();render()">..</a></div>`:''}${keys.map(k=>`<div class="row h"><span class="mute mono" style="width:18px">${typeof n[k]==='string'?'-':'▸'}</span><a onclick="S.path.push('${k}');render()">${esc(k)}</a></div>`).join('')}</div>`;
+if(!S.path.length&&n['README.md'])body+=`<div class="box" style="margin-top:16px"><div class="row sm"><b>README.md</b></div><div class="readme">${md(n['README.md'])}</div></div>`}}
+else if(S.tab==='issues'){
+body=`<div class="box" style="padding:14px;margin-bottom:14px"><div style="display:flex;gap:8px"><input id="it" class="field" placeholder="Describe a bug or idea" aria-label="Issue title" onkeydown="if(event.key==='Enter')addIssue()"><button class="btn p" onclick="addIssue()">New issue</button></div></div>
+<div class="box">${r.issues.length?r.issues.map((x,i)=>`<div class="row h"><span class="state" style="background:${x.open?'var(--ok)':'var(--bad)'}"></span><div style="flex:1"><b>${esc(x.t)}</b><div class="mute sm">#${r.issues.length-i} by ${esc(x.by)} · ${x.open?'Open':'Closed'}</div></div><button class="btn sm" onclick="toggleIssue(${i})">${x.open?'Close issue':'Reopen issue'}</button></div>`).join(''):'<div class="empty">No issues yet. Add the first one above.</div>'}</div>`}
+else body=`<div class="box"><div class="empty">No pull requests. Branches you push will appear here for review.</div></div>`;
+return`<h2 class="title"><span class="mute" style="font-weight:400">you /</span> ${esc(r.name)} <span class="pill">Public</span>
+<span class="sp"></span><button class="btn" onclick="star('${r.name}')">${r.starred?'Starred':'Star'} · ${r.stars}</button></h2>
+<p class="mute" style="margin:6px 0 0">${esc(r.desc)||'No description'}</p>
+<div class="tabs" role="tablist">${[['code','Code'],['issues','Issues ('+open+')'],['pulls','Pull requests']].map(([k,l])=>`<button class="tab ${S.tab===k?'on':''}" role="tab" onclick="S.tab='${k}';render()">${l}</button>`).join('')}</div>${body}`}
+function render(){const f=document.activeElement&&document.activeElement.id,v=f==='gs'?$('#gs').selectionStart:0;
+$('#app').innerHTML=S.view==='home'?home():repo();
+if(f==='gs'){$('#gs').focus();$('#gs').setSelectionRange(v,v)}}
+render();
+</script>
+</body>
+</html>
