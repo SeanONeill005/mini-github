@@ -4,7 +4,8 @@
 // Rules:
 //   - reading stays public (browse, clone)
 //   - every other /api write needs a logged-in user
-//   - writing to a repo (commit a file, create/delete branches, git push) needs to be its owner
+//   - writing to a repo (commit a file, branches, restore, git push, any plugin's route under /api/repos/:name/) needs to be its owner,
+//     except filing issues and starring, which any logged-in user may do
 //   - repos that existed before accounts belong to the first account that signs up
 //
 // config.json (optional): { "registration": false } closes sign-up once your own account exists.
@@ -72,7 +73,8 @@ module.exports = app => {
   app.can = (user, action, repo) => !!user && action === 'push' && ownerOf(repo) === user.username;
 
   // ---------- guards ----------
-  const REPO_WRITE = /^\/api\/repos\/[^/]+\/(file|branches)(\/|$)/;
+  // Deny by default: a new plugin's write routes under /api/repos/:name/ are owner-only unless listed here.
+  const OPEN_TO_USERS = /^\/api\/repos\/[^/]+\/(issues|star)(\/|$)/;
 
   app.before(({ req, method, pathname, params, user }) => {
     if (method === 'GET') return;
@@ -85,7 +87,7 @@ module.exports = app => {
     }
     if (pathname.startsWith('/api/auth/')) return; // these check for themselves
     if (!user) throw httpError(401, 'Log in to do that');
-    if (REPO_WRITE.test(pathname) && !app.can(user, 'push', params.name)) {
+    if (params.name && !OPEN_TO_USERS.test(pathname) && !app.can(user, 'push', params.name)) {
       throw httpError(403, `Only ${ownerOf(params.name)} can change ${params.name}`);
     }
   });
