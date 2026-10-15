@@ -36,6 +36,8 @@ Client (`forge`): `registerTab({id, label, order, render(el, {repo, query})})`,
 
 `plugins/history` adds a History tab: browse a branch's commits (30 per page), see the files each commit changed, and **Restore** a branch to an earlier commit. Restoring adds a new commit whose files match the chosen one, so no history is lost.
 
+`plugins/pulls` adds a Pull requests tab and branch merging. Merges are computed with `git merge-tree` (no working tree; needs git 2.38+) and recorded as real merge commits authored by the person who merged; conflicting merges are refused and the branch is left untouched. Pull requests (title, description, base/head, open/merged/closed) show commits, changed files and a diff, and can be merged (optionally deleting the branch), closed and reopened. **Merge branches** merges two branches directly, and also marks a matching open PR as merged. Reading is public; creating, merging and closing are owner-only (the auth plugin's deny-by-default rule), so the usual flow is `git push` a branch, then open a PR for it.
+
 See `plugins/issues` (new tab + routes) and `plugins/stars` (decorator + UI slot), `plugins/clone` (raw protocol route + Clone button).
 
 ## Cloning

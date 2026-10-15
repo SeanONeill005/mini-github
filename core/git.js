@@ -4,7 +4,8 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-function git(args, { gitDir, input, env } = {}) {
+// Runs git and always resolves with { code, out, err } (use when a non-zero exit is meaningful, e.g. merge-tree conflicts).
+function gitResult(args, { gitDir, input, env } = {}) {
   return new Promise((resolve, reject) => {
     const p = spawn('git', args, { env: { ...process.env, ...(gitDir && { GIT_DIR: gitDir }), ...env } });
     const out = [], err = [];
@@ -12,13 +13,16 @@ function git(args, { gitDir, input, env } = {}) {
     p.stderr.on('data', d => err.push(d));
     p.on('error', reject);
     p.stdin.on('error', () => {}); // git may exit before reading stdin (EPIPE); the exit code tells the story
-    p.on('close', code => code === 0
-      ? resolve(Buffer.concat(out).toString('utf8'))
-      : reject(new Error(Buffer.concat(err).toString().trim() || 'git failed')));
-    p.stdin.on('error', () => {}); // git may exit without reading stdin (EPIPE)
+    p.on('close', code => resolve({ code, out: Buffer.concat(out).toString('utf8'), err: Buffer.concat(err).toString().trim() }));
     p.stdin.end(input ?? '');
   });
 }
+
+// Like gitResult, but rejects on a non-zero exit and resolves with stdout.
+const git = (args, opts) => gitResult(args, opts).then(r => {
+  if (r.code !== 0) throw new Error(r.err || 'git failed');
+  return r.out;
+});
 
 const tryGit = (...a) => git(...a).catch(() => null);
 
@@ -44,4 +48,4 @@ async function commitFile(gitDir, { branch, filePath, content, message, author }
   }
 }
 
-module.exports = { git, tryGit, commitFile };
+module.exports = { git, gitResult, tryGit, commitFile };
