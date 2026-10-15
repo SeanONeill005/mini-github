@@ -34,6 +34,8 @@ Client (`forge`): `registerTab({id, label, order, render(el, {repo, query})})`,
 
 `app.raw(/regex/, (req, res, url) => ...)` takes over a non-JSON route (used by `plugins/clone` for git smart HTTP).
 
+`plugins/history` adds a History tab: browse a branch's commits (30 per page), see the files each commit changed, and **Restore** a branch to an earlier commit. Restoring adds a new commit whose files match the chosen one, so no history is lost.
+
 See `plugins/issues` (new tab + routes) and `plugins/stars` (decorator + UI slot), `plugins/clone` (raw protocol route + Clone button).
 
 ## Cloning
