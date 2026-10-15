@@ -11,7 +11,10 @@ const html = s => { const t = document.createElement('template'); t.innerHTML = 
 async function api(method, url, body) {
   const res = await fetch(url, { method, headers: body ? { 'Content-Type': 'application/json' } : {}, body: body && JSON.stringify(body) });
   const data = res.status === 204 ? null : await res.json();
-  if (!res.ok) throw new Error(data?.error || res.statusText);
+  if (!res.ok) {
+    if (res.status === 401) forge.onUnauthorized?.();
+    throw new Error(data?.error || res.statusText);
+  }
   return data;
 }
 
@@ -36,6 +39,9 @@ const forge = {
   },
   renderFile: (name, text) => renderers.find(r => r.match(name))?.render(text),
   search: '',
+  canWrite: () => true, // the auth plugin decides who may change a repo
+  onUnauthorized: null, // called when the API answers 401
+  async refreshChrome() { const el = $('#acct'); el.replaceChildren(); await forge.fillSlot('header', {}, el); },
 };
 window.forge = forge;
 
@@ -61,24 +67,26 @@ forge.registerTab({
     try { entries = await api('GET', `${base}/tree?${q()}`); }
     catch (e) { content = (await api('GET', `${base}/blob?${q()}`)).content; }
     const isFile = content !== null;
+    const canWrite = forge.canWrite(repo);
     const parts = dirPath.split('/').filter(Boolean);
     const sub = n => parts.slice(0, n).join('/');
 
     el.innerHTML = `
       <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:4px">
         <select class="field" style="width:auto" id="br" aria-label="Switch branch">${branches.map(b => `<option ${b === ref ? 'selected' : ''}>${esc(b)}</option>`).join('')}</select>
-        <button class="btn" id="nb">New branch</button>
-        ${ref !== 'main' ? '<button class="btn" id="db">Delete branch</button>' : ''}
+        ${canWrite ? '<button class="btn" id="nb">New branch</button>' : ''}
+        ${canWrite && ref !== 'main' ? '<button class="btn" id="db">Delete branch</button>' : ''}
         <span class="sp"></span>
         <span class="mute sm">${esc(log[0]?.message || '')} · ${log.length} commits · ${branches.length} branches</span>
-        ${isFile ? '' : `<a class="btn" href="${here({ new: 1 })}">Add file</a>`}
+        ${isFile || !canWrite ? '' : `<a class="btn" href="${here({ new: 1 })}">Add file</a>`}
       </div>
       <div class="crumb mono"><a href="${link(repo.name, 'code', { ref })}">${esc(repo.name)}</a>${parts.map((p, i) => `/<a href="${link(repo.name, 'code', { ref, path: sub(i + 1) })}">${esc(p)}</a>`).join('')}</div>
       <div id="body"></div>`;
 
     const body = el.querySelector('#body');
     el.querySelector('#br').onchange = e => forge.navigate(link(repo.name, 'code', { ref: e.target.value }));
-    el.querySelector('#nb').onclick = async () => {
+    const nb = el.querySelector('#nb');
+    if (nb) nb.onclick = async () => {
       const name = prompt(`New branch name (copies ${ref})`);
       if (!name) return;
       try { const b = await api('POST', `${base}/branches`, { name, from: ref }); forge.navigate(link(repo.name, 'code', { ref: b.name })); }
@@ -91,7 +99,7 @@ forge.registerTab({
       forge.navigate(link(repo.name, 'code'));
     };
 
-    const editing = query.get('edit') && isFile, adding = query.get('new') && !isFile;
+    const editing = canWrite && query.get('edit') && isFile, adding = canWrite && query.get('new') && !isFile;
     if (editing || adding) {
       const name = parts.at(-1);
       body.innerHTML = `<form class="box"><div class="row sm"><b>${adding ? 'New file on' : `Editing ${esc(name)} on`} ${esc(ref)}</b></div><div style="padding:0 16px 16px">
@@ -112,7 +120,7 @@ forge.registerTab({
       };
     } else if (isFile) {
       const lines = content.replace(/\n$/, '').split('\n');
-      body.innerHTML = `<div class="box"><div class="row sm"><b>${esc(parts.at(-1))}</b><span class="mute">${lines.length} lines</span><span class="sp"></span><a class="btn sm" href="${here({ edit: 1 })}">Edit file</a></div>
+      body.innerHTML = `<div class="box"><div class="row sm"><b>${esc(parts.at(-1))}</b><span class="mute">${lines.length} lines</span><span class="sp"></span>${canWrite ? `<a class="btn sm" href="${here({ edit: 1 })}">Edit file</a>` : ''}</div>
         <div class="code"><pre class="ln">${lines.map((_, i) => i + 1).join('\n')}</pre><pre>${esc(lines.join('\n'))}</pre></div></div>`;
     } else {
       entries.sort((a, b) => (a.type === 'file') - (b.type === 'file') || a.name.localeCompare(b.name));
@@ -138,7 +146,7 @@ async function home() {
   const list = $('#list');
   if (!repos.length) list.innerHTML = `<div class="empty">${q ? `No repositories match "${esc(forge.search)}".` : 'No repositories yet. Create your first one.'}</div>`;
   for (const r of repos) {
-    const row = html(`<div class="row h"><div style="flex:1;min-width:0"><a href="${link(r.name, 'code')}"><b>you/${esc(r.name)}</b></a> <span class="pill">Public</span>
+    const row = html(`<div class="row h"><div style="flex:1;min-width:0"><a href="${link(r.name, 'code')}"><b>${esc(r.owner || 'you')}/${esc(r.name)}</b></a> <span class="pill">Public</span>
       <div class="mute sm">${esc(r.description) || 'No description'}</div></div><span class="actions"></span></div>`);
     list.append(row);
     await forge.fillSlot('repo-actions', { repo: r }, list.lastElementChild.querySelector('.actions'));
@@ -149,7 +157,7 @@ async function repoView({ name, tab, query }) {
   const repo = await api('GET', `/api/repos/${encodeURIComponent(name)}`);
   const sorted = [...tabs].sort((a, b) => (a.order ?? 50) - (b.order ?? 50));
   const active = sorted.find(t => t.id === tab) || sorted[0];
-  app.innerHTML = `<h2 class="title"><span class="mute" style="font-weight:400">you /</span> ${esc(repo.name)} <span class="pill">Public</span><span class="sp"></span><span class="actions"></span></h2>
+  app.innerHTML = `<h2 class="title"><span class="mute" style="font-weight:400">${esc(repo.owner || 'you')} /</span> ${esc(repo.name)} <span class="pill">Public</span><span class="sp"></span><span class="actions"></span></h2>
     <p class="mute" style="margin:6px 0 0">${esc(repo.description) || 'No description'}</p>
     <div class="tabs" role="tablist">${sorted.map(t => `<a class="tab ${t === active ? 'on' : ''}" role="tab" href="${link(name, t.id)}">${esc(typeof t.label === 'function' ? t.label(repo) : t.label)}</a>`).join('')}</div>
     <div id="tab"></div>`;
@@ -195,7 +203,8 @@ $('#dlg form').onsubmit = async e => {
 // ---------- load plugins, then start ----------
 const { plugins } = await api('GET', '/api/manifest');
 for (const id of plugins) {
-  try { (await import(`/plugins/${id}/client.js`)).default(forge); }
+  try { await (await import(`/plugins/${id}/client.js`)).default(forge); }
   catch (e) { console.error(`plugin ${id} failed to load`, e); }
 }
+await forge.refreshChrome();
 route();

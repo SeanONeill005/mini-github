@@ -6,7 +6,9 @@ const { git, tryGit, commitFile } = require('../git');
 module.exports = app => {
   const { httpError } = app;
   const reposDir = path.join(app.dataDir, 'repos');
-  const author = app.config.author || { name: 'you', email: 'you@forge.local' };
+  const fallbackAuthor = app.config.author || { name: 'you', email: 'you@forge.local' };
+  // Commits made through the web UI are authored by the logged-in user (if an auth plugin is loaded).
+  const authorFor = user => (user ? { name: user.username, email: user.email } : fallbackAuthor);
   fs.mkdirSync(reposDir, { recursive: true });
 
   const gitDir = name => path.join(reposDir, name + '.git');
@@ -50,19 +52,18 @@ module.exports = app => {
     return Promise.all(names.map(describe));
   });
 
-  app.route('POST', '/api/repos', async ({ body }) => {
+  app.route('POST', '/api/repos', async ({ body, user }) => {
     const name = validName(String(body.name || '').trim().toLowerCase().replace(/[^a-z0-9._-]+/g, '-'));
     if (fs.existsSync(gitDir(name))) throw httpError(409, `A repository named "${name}" already exists`);
     const description = String(body.description || '').trim();
     await git(['init', '--bare', '-b', 'main', gitDir(name)]);
     fs.writeFileSync(path.join(gitDir(name), 'description'), description || 'Unnamed repository');
     await commitFile(gitDir(name), {
-      branch: 'main', filePath: 'README.md', author, message: 'Initial commit',
+      branch: 'main', filePath: 'README.md', author: authorFor(user), message: 'Initial commit',
       content: `# ${name}\n\n${description || 'Add a description to your project.'}\n`,
     });
-    const repo = await describe(name);
-    await app.emit('repo:created', repo);
-    return repo;
+    await app.emit('repo:created', { ...(await describe(name)), creator: user?.username });
+    return describe(name); // described again: plugins (e.g. auth) may have recorded the owner while handling the event
   });
 
   app.route('GET', '/api/repos/:name', async ({ params }) => { existing(params.name); return describe(params.name); });
@@ -114,7 +115,7 @@ module.exports = app => {
   });
 
   // Create or update a file on a branch as a single commit.
-  app.route('PUT', '/api/repos/:name/file', async ({ params, body }) => {
+  app.route('PUT', '/api/repos/:name/file', async ({ params, body, user }) => {
     const dir = existing(params.name);
     const filePath = cleanPath(body.path);
     if (!filePath) throw httpError(400, 'File name required');
@@ -124,11 +125,11 @@ module.exports = app => {
       throw httpError(409, `"${filePath}" already exists on ${branch}`);
     }
     const sha = await commitFile(dir, {
-      branch, filePath, author,
+      branch, filePath, author: authorFor(user),
       content: String(body.content ?? ''),
       message: String(body.message || '').trim() || `${body.isNew ? 'Add' : 'Update'} ${filePath.split('/').pop()}`,
     });
-    await app.emit('commit', { repo: params.name, branch, sha, path: filePath });
+    await app.emit('commit', { repo: params.name, branch, sha, path: filePath, by: user?.username });
     return { sha };
   });
 };

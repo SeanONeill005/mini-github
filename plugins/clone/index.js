@@ -1,5 +1,7 @@
 // Serves repos over git's smart HTTP protocol so `git clone http://host/<repo>.git` works.
-// Read-only: only upload-pack (clone/fetch) is allowed, push is refused.
+// Clone/fetch (upload-pack) is public. Push (receive-pack) needs HTTP Basic credentials: your username
+// and a personal access token, and is only allowed where app.can(user, 'push', repo) says so.
+// With no auth plugin loaded, push stays refused.
 const { spawn } = require('child_process');
 const path = require('path');
 
@@ -7,9 +9,15 @@ module.exports = app => {
   const root = path.join(app.dataDir, 'repos');
 
   app.raw(/^\/[a-z0-9][a-z0-9._-]*\.git\//, (req, res, url) => {
+    let remoteUser = '';
     if (url.pathname.endsWith('git-receive-pack') || url.searchParams.get('service') === 'git-receive-pack') {
-      res.writeHead(403, { 'Content-Type': 'text/plain' });
-      return res.end('Push is not enabled\n');
+      const deny = (status, msg, headers = {}) => { res.writeHead(status, { 'Content-Type': 'text/plain', ...headers }); res.end(msg + '\n'); };
+      if (!app.hasIdentity()) return deny(403, 'Push is not enabled');
+      const user = app.userFor(req);
+      if (!user) return deny(401, 'Authentication required', { 'WWW-Authenticate': 'Basic realm="Forge"' });
+      const repoName = url.pathname.split('/')[1].replace(/\.git$/, '');
+      if (!app.can(user, 'push', repoName)) return deny(403, `${user.username} cannot push to ${repoName}`);
+      remoteUser = user.username;
     }
     const p = spawn('git', ['http-backend'], {
       env: {
@@ -19,6 +27,8 @@ module.exports = app => {
         CONTENT_TYPE: req.headers['content-type'] || '', CONTENT_LENGTH: req.headers['content-length'] || '',
         HTTP_CONTENT_ENCODING: req.headers['content-encoding'] || '',
         REMOTE_ADDR: req.socket.remoteAddress || '',
+        // git http-backend only serves receive-pack when a REMOTE_USER is set
+        ...(remoteUser && { REMOTE_USER: remoteUser }),
       },
     });
     req.pipe(p.stdin);

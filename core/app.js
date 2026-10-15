@@ -10,6 +10,7 @@ const httpError = (status, message) => Object.assign(new Error(message), { statu
 
 function createApp({ dataDir, pluginsDir, publicDir, config = {} }) {
   const routes = [], rawRoutes = [], listeners = {}, decorators = {}, clients = [];
+  const before = [], identifiers = [];
 
   const app = {
     dataDir, config, httpError,
@@ -23,6 +24,19 @@ function createApp({ dataDir, pluginsDir, publicDir, config = {} }) {
 
     // raw(/regex/, (req, res, url) => ...) takes over the response; for non-JSON protocols (e.g. git over HTTP).
     raw(re, handler) { rawRoutes.push({ re, handler }); },
+
+    // before(async ({req, method, pathname, params, user}) => {}) runs before every matched /api route
+    // (and before its body is read). Throw httpError(...) to refuse the request.
+    before(fn) { before.push(fn); },
+
+    // identify(req => user | null): a plugin that knows who is calling. First non-null answer wins.
+    // Route handlers receive the result as `user`; raw routes can call app.userFor(req).
+    identify(fn) { identifiers.push(fn); },
+    hasIdentity: () => identifiers.length > 0,
+    userFor(req) { for (const fn of identifiers) { const u = fn(req); if (u) return u; } return null; },
+
+    // can(user, action, repoName) -> bool. Denies everything until a plugin (auth) replaces it.
+    can: () => false,
 
     on(event, fn) { (listeners[event] ||= []).push(fn); },
     async emit(event, payload) { for (const fn of listeners[event] || []) await fn(payload); },
@@ -94,8 +108,10 @@ function createApp({ dataDir, pluginsDir, publicDir, config = {} }) {
           const m = r.method === req.method && r.re.exec(url.pathname);
           if (!m) continue;
           const params = Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])]));
+          const user = app.userFor(req);
+          for (const fn of before) await fn({ req, method: req.method, pathname: url.pathname, params, user });
           const body = ['POST', 'PUT', 'PATCH'].includes(req.method) ? await readBody(req) : undefined;
-          const out = await r.handler({ params, query: url.searchParams, body, req });
+          const out = await r.handler({ params, query: url.searchParams, body, req, res, user });
           return out === undefined ? (res.writeHead(204), res.end()) : send(res, 200, out);
         }
         throw httpError(404, 'Not found');

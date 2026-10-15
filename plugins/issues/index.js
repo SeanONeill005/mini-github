@@ -7,11 +7,11 @@ module.exports = app => {
 
   app.route('GET', '/api/repos/:name/issues', ({ params }) => list(params.name));
 
-  app.route('POST', '/api/repos/:name/issues', ({ params, body }) => {
+  app.route('POST', '/api/repos/:name/issues', ({ params, body, user }) => {
     const title = String(body.title || '').trim();
     if (!title) throw app.httpError(400, 'Title required');
     const issues = list(params.name);
-    const issue = { id: issues.length + 1, title, by: 'you', open: true, created: new Date().toISOString() };
+    const issue = { id: issues.length + 1, title, by: user?.username || 'you', open: true, created: new Date().toISOString() };
     store.set(params.name, [...issues, issue]);
     app.emit('issue:created', { repo: params.name, issue });
     return issue;

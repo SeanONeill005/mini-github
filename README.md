@@ -38,6 +38,26 @@ See `plugins/issues` (new tab + routes) and `plugins/stars` (decorator + UI slot
 
 ## Cloning
 
-`git clone http://localhost:3000/<repo>.git` works (read-only; push is refused until auth exists).
+`git clone http://localhost:3000/<repo>.git` works for anyone. Pushing needs an account (below).
+
+## Accounts, commit and push
+
+Sign up in the header. Reading and cloning stay public; everything that writes needs a login, and changing a repo
+(web commits, branches, `git push`) is limited to its owner. Repos created before accounts existed belong to the
+first account that signs up.
+
+To push: click **Tokens**, create one, then
+
+```
+git push http://localhost:3000/<repo>.git main     # username = your account, password = the token
+```
+
+Passwords and tokens are stored hashed in `data/plugins/auth.json`. Web commits are authored by your account
+(username + the email you signed up with). Serve Forge behind HTTPS if it is ever reachable beyond your machine:
+passwords and tokens are otherwise sent in clear. `config.json` can set `{ "registration": false }` to close sign-up
+once your own account exists.
+
+Kernel hooks the auth plugin uses (any plugin can): `app.identify(req => user)`, `app.before(ctx => {...})` to
+veto an API call, `app.can(user, action, repo)`, and `user` / `res` passed to route handlers.
 
 `Forge.html` is the original hardcoded prototype, kept for reference.
