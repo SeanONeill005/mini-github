@@ -14,6 +14,7 @@ function git(args, { gitDir, input, env } = {}) {
     p.on('close', code => code === 0
       ? resolve(Buffer.concat(out).toString('utf8'))
       : reject(new Error(Buffer.concat(err).toString().trim() || 'git failed')));
+    p.stdin.on('error', () => {}); // git may exit without reading stdin (EPIPE)
     p.stdin.end(input ?? '');
   });
 }
