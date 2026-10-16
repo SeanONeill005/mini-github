@@ -16,6 +16,7 @@ module.exports = app => {
   const authorFor = user => (user ? { name: user.username, email: user.email } : fallbackAuthor);
   const store = app.store('pulls');
   const all = repo => store.get(repo, []);
+  app.on('repo:deleted', ({ name }) => store.delete(name));
 
   app.decorate('repo', repo => ({ openPulls: all(repo.name).filter(p => p.state === 'open').length }));
 

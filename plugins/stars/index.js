@@ -4,6 +4,7 @@ module.exports = app => {
   const get = repo => store.get(repo, { count: 0, starred: false });
 
   app.decorate('repo', repo => get(repo.name));
+  app.on('repo:deleted', ({ name }) => store.delete(name));
 
   app.route('POST', '/api/repos/:name/star', ({ params }) => {
     const s = get(params.name);

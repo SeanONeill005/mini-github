@@ -2,6 +2,7 @@
 //   forge.registerTab({ id, label: string | repo => string, order, render(el, ctx) })
 //   forge.contribute(slot, ctx => string | Node | null)      slots: 'repo-actions'
 //   forge.registerRenderer({ match: filename => bool, render: text => html })
+//   forge.registerPage({ match: firstSegment => bool, render(el, { name, query }) })   e.g. #/~user
 // Plugins ship a client.js (default export: forge => {...}) that is loaded from /api/manifest.
 
 const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -23,10 +24,11 @@ const link = (repo, tab, params = {}) => {
   return `#/${encodeURIComponent(repo)}/${tab}${q.size ? '?' + q : ''}`;
 };
 
-const tabs = [], slots = {}, renderers = [];
+const tabs = [], slots = {}, renderers = [], pages = [];
 const forge = {
   api, esc, html, link,
   registerTab: t => tabs.push(t),
+  registerPage: p => pages.push(p),
   contribute: (slot, fn) => (slots[slot] ||= []).push(fn),
   registerRenderer: r => renderers.push(r),
   refresh: () => route(),
@@ -157,7 +159,7 @@ async function repoView({ name, tab, query }) {
   const repo = await api('GET', `/api/repos/${encodeURIComponent(name)}`);
   const sorted = [...tabs].sort((a, b) => (a.order ?? 50) - (b.order ?? 50));
   const active = sorted.find(t => t.id === tab) || sorted[0];
-  app.innerHTML = `<h2 class="title"><span class="mute" style="font-weight:400">${esc(repo.owner || 'you')} /</span> ${esc(repo.name)} <span class="pill">Public</span><span class="sp"></span><span class="actions"></span></h2>
+  app.innerHTML = `<h2 class="title"><span class="mute" style="font-weight:400">${repo.owner ? `<a href="#/~${encodeURIComponent(repo.owner)}">${esc(repo.owner)}</a>` : 'you'} /</span> ${esc(repo.name)} <span class="pill">Public</span><span class="sp"></span><span class="actions"></span></h2>
     <p class="mute" style="margin:6px 0 0">${esc(repo.description) || 'No description'}</p>
     <div class="tabs" role="tablist">${sorted.map(t => `<a class="tab ${t === active ? 'on' : ''}" role="tab" href="${link(name, t.id)}">${esc(typeof t.label === 'function' ? t.label(repo) : t.label)}</a>`).join('')}</div>
     <div id="tab"></div>`;
@@ -171,7 +173,9 @@ async function route() {
   const [p, q] = location.hash.slice(2).split('?');
   const [name, tab] = p.split('/');
   try {
-    if (name) await repoView({ name: decodeURIComponent(name), tab, query: new URLSearchParams(q || '') });
+    const page = name && pages.find(p => p.match(decodeURIComponent(name)));
+    if (page) await page.render(app, { name: decodeURIComponent(name), query: new URLSearchParams(q || '') });
+    else if (name) await repoView({ name: decodeURIComponent(name), tab, query: new URLSearchParams(q || '') });
     else await home();
   } catch (e) {
     if (mine === seq) app.innerHTML = `<div class="box"><div class="empty">${esc(e.message)}. <a href="#/">Back to repositories</a></div></div>`;

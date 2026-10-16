@@ -70,7 +70,8 @@ module.exports = app => {
     return s && s.expires > Date.now() && users()[s.user] ? publicUser(s.user, 'session') : null;
   });
 
-  app.can = (user, action, repo) => !!user && action === 'push' && ownerOf(repo) === user.username;
+  app.can = (user, action, repo) => !!user && (action === 'push' || action === 'admin') && ownerOf(repo) === user.username;
+  app.userExists = name => !!users()[name]; // lets other plugins (collaborators) validate usernames
 
   // ---------- guards ----------
   // Deny by default: a new plugin's write routes under /api/repos/:name/ are owner-only unless listed here.
@@ -98,6 +99,12 @@ module.exports = app => {
     if (!repo.creator) return;
     const owners = store.get('owners', {});
     owners[repo.name] = repo.creator;
+    store.set('owners', owners);
+  });
+
+  app.on('repo:deleted', ({ name }) => {
+    const owners = store.get('owners', {});
+    delete owners[name];
     store.set('owners', owners);
   });
 

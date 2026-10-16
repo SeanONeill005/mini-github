@@ -38,6 +38,12 @@ Client (`forge`): `registerTab({id, label, order, render(el, {repo, query})})`,
 
 `plugins/pulls` adds a Pull requests tab and branch merging. Merges are computed with `git merge-tree` (no working tree; needs git 2.38+) and recorded as real merge commits authored by the person who merged; conflicting merges are refused and the branch is left untouched. Pull requests (title, description, base/head, open/merged/closed) show commits, changed files and a diff, and can be merged (optionally deleting the branch), closed and reopened. **Merge branches** merges two branches directly, and also marks a matching open PR as merged. Reading is public; creating, merging and closing are owner-only (the auth plugin's deny-by-default rule), so the usual flow is `git push` a branch, then open a PR for it.
 
+`plugins/profile` adds a profile page at `#/~username` (linked from the header and from a repo's owner name). It lists the user's repos in a priority order they choose, each with an optional brief description that is shown on the profile only (falls back to the repo description). Users can also upload a profile image (cropped and shrunk to 256 px in the browser, stored as a small JPEG data URL; PNG/JPEG/WebP only, never SVG) and write a bio of up to 280 characters. Only the owner can edit; prefs are stored in `data/plugins/profile.json`. Kernel addition: `forge.registerPage({ match, render })` for non-repo pages.
+
+`plugins/collaborators` adds a Collaborators tab: the owner can give other accounts write access (web commits, branches, pull requests, `git push`). It wraps `app.can` and decorates repos with `collaborators`; only the owner manages the list, and a collaborator can leave. Stored in `data/plugins/collaborators.json`. `app.userExists(name)` (from auth) validates usernames.
+
+**Deleting a repo:** the owner opens the repo's Settings tab and types its name to confirm (`DELETE /api/repos/:name?confirm=<name>`; collaborators can't). Core removes the bare repo and emits `repo:deleted`; stars, issues, pull requests, collaborators, owner records and profile entries clean themselves up, so a new repo with the same name starts fresh. Plugins that store per-repo data should listen for it (`app.store(ns).delete(key)` and `.keys()` exist for this).
+
 See `plugins/issues` (new tab + routes) and `plugins/stars` (decorator + UI slot), `plugins/clone` (raw protocol route + Clone button).
 
 ## Cloning

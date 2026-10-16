@@ -68,6 +68,16 @@ module.exports = app => {
 
   app.route('GET', '/api/repos/:name', async ({ params }) => { existing(params.name); return describe(params.name); });
 
+  // Owner-only ('admin' action) and the repo name must be repeated in ?confirm=. Plugins clean up on 'repo:deleted'.
+  app.route('DELETE', '/api/repos/:name', async ({ params, query, user }) => {
+    existing(params.name);
+    if (!app.can(user, 'admin', params.name)) throw httpError(403, 'Only the owner can delete this repository');
+    if (query.get('confirm') !== params.name) throw httpError(400, 'Type the repository name to confirm');
+    fs.rmSync(gitDir(params.name), { recursive: true, force: true });
+    await app.emit('repo:deleted', { name: params.name });
+    return { deleted: params.name };
+  });
+
   app.route('GET', '/api/repos/:name/branches', async ({ params }) => {
     const out = await git(['for-each-ref', '--format=%(refname:short)', 'refs/heads'], { gitDir: existing(params.name) });
     return out.split('\n').filter(Boolean);

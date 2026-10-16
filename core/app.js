@@ -53,13 +53,15 @@ function createApp({ dataDir, pluginsDir, publicDir, config = {} }) {
       const file = path.join(dataDir, 'plugins', ns + '.json');
       let data = {};
       try { data = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { /* first run */ }
+      const save = () => {
+        fs.mkdirSync(path.dirname(file), { recursive: true });
+        fs.writeFileSync(file, JSON.stringify(data, null, 2));
+      };
       return {
         get: (key, fallback) => (key in data ? data[key] : fallback),
-        set(key, value) {
-          data[key] = value;
-          fs.mkdirSync(path.dirname(file), { recursive: true });
-          fs.writeFileSync(file, JSON.stringify(data, null, 2));
-        },
+        set(key, value) { data[key] = value; save(); },
+        delete(key) { if (key in data) { delete data[key]; save(); } },
+        keys: () => Object.keys(data),
       };
     },
   };

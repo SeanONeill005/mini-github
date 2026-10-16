@@ -2,6 +2,7 @@
 module.exports = app => {
   const store = app.store('issues');
   const list = repo => store.get(repo, []);
+  app.on('repo:deleted', ({ name }) => store.delete(name));
 
   app.decorate('repo', repo => ({ openIssues: list(repo.name).filter(i => i.open).length }));
 

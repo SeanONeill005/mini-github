@@ -45,3 +45,4 @@ dialog{border:1px solid var(--line);background:var(--panel);color:var(--text);bo
 dialog::backdrop{background:rgba(0,0,0,.45)}
 label{display:block;font-weight:500;margin:12px 0 4px}
 .err{color:var(--bad);font-size:13px;margin:8px 0 0}
+.btn:disabled{opacity:.4;cursor:default}
