@@ -9,6 +9,18 @@ const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;'
 const $ = s => document.querySelector(s);
 const html = s => { const t = document.createElement('template'); t.innerHTML = s.trim(); return t.content; };
 
+const svg = d => `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const icons = {
+  star: svg('<path d="M8 1.8l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.6l-3.8 2 .7-4.3-3.1-3 4.3-.6z"/>'),
+  issue: svg('<circle cx="8" cy="8" r="6"/><circle cx="8" cy="8" r="1" fill="currentColor"/>'),
+  pull: svg('<circle cx="4.5" cy="3.5" r="1.7"/><circle cx="4.5" cy="12.5" r="1.7"/><circle cx="11.5" cy="12.5" r="1.7"/><path d="M4.5 5.2v5.6M11.5 10.8V7a2 2 0 00-2-2H8"/>'),
+  folder: '<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.5 3.6c0-.6.5-1.1 1.1-1.1h3.1c.3 0 .6.1.8.4l.9 1h6c.6 0 1.1.5 1.1 1.1v7.4c0 .6-.5 1.1-1.1 1.1H2.6c-.6 0-1.1-.5-1.1-1.1z"/></svg>',
+  file: svg('<path d="M4 1.8h5l3.2 3.2v8.2a1 1 0 01-1 1H4a1 1 0 01-1-1V2.8a1 1 0 011-1z"/><path d="M9 1.8V5h3.2"/>'),
+};
+// A stable gradient "avatar" for a name: same name, same colour.
+const hue = n => { let h = 0; for (const c of String(n)) h = (h * 31 + c.charCodeAt(0)) % 30; return 4 + h; }; // ember range: reds to ambers
+const avatar = (name, cls = '') => `<span class="avatar ${cls}" style="--h:${hue(name)}" aria-hidden="true">${esc(String(name || '?')[0])}</span>`;
+
 async function api(method, url, body) {
   const res = await fetch(url, { method, headers: body ? { 'Content-Type': 'application/json' } : {}, body: body && JSON.stringify(body) });
   const data = res.status === 204 ? null : await res.json();
@@ -26,7 +38,7 @@ const link = (repo, tab, params = {}) => {
 
 const tabs = [], slots = {}, renderers = [], pages = [];
 const forge = {
-  api, esc, html, link,
+  api, esc, html, link, icons, avatar,
   registerTab: t => tabs.push(t),
   registerPage: p => pages.push(p),
   contribute: (slot, fn) => (slots[slot] ||= []).push(fn),
@@ -74,12 +86,12 @@ forge.registerTab({
     const sub = n => parts.slice(0, n).join('/');
 
     el.innerHTML = `
-      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:4px">
+      <div class="toolbar">
         <select class="field" style="width:auto" id="br" aria-label="Switch branch">${branches.map(b => `<option ${b === ref ? 'selected' : ''}>${esc(b)}</option>`).join('')}</select>
         ${canWrite ? '<button class="btn" id="nb">New branch</button>' : ''}
         ${canWrite && ref !== 'main' ? '<button class="btn" id="db">Delete branch</button>' : ''}
         <span class="sp"></span>
-        <span class="mute sm">${esc(log[0]?.message || '')} · ${log.length} commits · ${branches.length} branches</span>
+        <span class="mute sm">${branches.length} branch${branches.length === 1 ? '' : 'es'}</span>
         ${isFile || !canWrite ? '' : `<a class="btn" href="${here({ new: 1 })}">Add file</a>`}
       </div>
       <div class="crumb mono"><a href="${link(repo.name, 'code', { ref })}">${esc(repo.name)}</a>${parts.map((p, i) => `/<a href="${link(repo.name, 'code', { ref, path: sub(i + 1) })}">${esc(p)}</a>`).join('')}</div>
@@ -126,8 +138,11 @@ forge.registerTab({
         <div class="code"><pre class="ln">${lines.map((_, i) => i + 1).join('\n')}</pre><pre>${esc(lines.join('\n'))}</pre></div></div>`;
     } else {
       entries.sort((a, b) => (a.type === 'file') - (b.type === 'file') || a.name.localeCompare(b.name));
-      body.innerHTML = `<div class="box">${parts.length ? `<div class="row h"><a href="${link(repo.name, 'code', { ref, path: sub(parts.length - 1) })}">..</a></div>` : ''}
-        ${entries.map(n => `<div class="row h"><span class="mute mono" style="width:18px">${n.type === 'dir' ? '▸' : '-'}</span><a href="${link(repo.name, 'code', { ref, path: [dirPath, n.name].filter(Boolean).join('/') })}">${esc(n.name)}</a></div>`).join('')}</div>`;
+      const last = log[0];
+      body.innerHTML = `<div class="box files">
+        ${last ? `<div class="row sm files-head">${avatar(last.by, 'xs')}<b>${esc(last.by)}</b><span class="msg mute">${esc(last.message)}</span><span class="sp"></span><span class="mute" style="white-space:nowrap">${log.length} commit${log.length === 1 ? '' : 's'}</span></div>` : ''}
+        ${parts.length ? `<div class="row h"><span class="ico dir">${icons.folder}</span><a href="${link(repo.name, 'code', { ref, path: sub(parts.length - 1) })}">..</a></div>` : ''}
+        ${entries.map(n => `<div class="row h"><span class="ico ${n.type === 'dir' ? 'dir' : ''}">${n.type === 'dir' ? icons.folder : icons.file}</span><a href="${link(repo.name, 'code', { ref, path: [dirPath, n.name].filter(Boolean).join('/') })}">${esc(n.name)}</a></div>`).join('')}</div>`;
       const readme = entries.find(n => n.type === 'file' && forge.renderFile(n.name, ''));
       if (readme && !parts.length) {
         const r = await api('GET', `${base}/blob?${q({ path: readme.name })}`);
@@ -142,15 +157,40 @@ const app = $('#app');
 
 async function home() {
   const q = forge.search.toLowerCase();
-  const repos = (await api('GET', '/api/repos')).filter(r => (r.name + r.description).toLowerCase().includes(q));
-  app.innerHTML = `<div class="hero"><h1>Where code lives</h1><p class="mute">Host repositories and read code in one place.</p></div>
-    <h3>Repositories <span class="pill">${repos.length}</span></h3><div class="box" id="list"></div>`;
+  const all = await api('GET', '/api/repos');
+  const repos = all.filter(r => (r.name + r.description).toLowerCase().includes(q));
+  const sum = k => all.reduce((n, r) => n + (r[k] || 0), 0);
+  app.innerHTML = `<section class="hero">
+      <span class="eyebrow">Self-hosted git, built to be extended</span>
+      <h1>Where code gets <em>forged</em>.</h1>
+      <p>Host repositories, track issues and review pull requests in one small, fast place that you own.</p>
+      <div class="hero-cta"><button class="btn p lg" id="hn">New repository</button><a class="btn lg" href="#repos">Browse repositories</a></div>
+      <div class="stats">
+        <div class="stat"><b>${all.length}</b><span>repositories</span></div>
+        <div class="stat"><b>${sum('count')}</b><span>stars</span></div>
+        <div class="stat"><b>${sum('openIssues')}</b><span>open issues</span></div>
+        <div class="stat"><b>${sum('openPulls')}</b><span>open pull requests</span></div>
+      </div></section>
+    <div class="section-head" id="repos"><h3>Repositories</h3><span class="pill">${repos.length}</span></div>
+    <div class="cards" id="list"></div>`;
+  $('#hn').onclick = () => $('#new').click();
+  $('a[href="#repos"]').onclick = e => { e.preventDefault(); $('#repos').scrollIntoView({ behavior: 'smooth' }); };
   const list = $('#list');
-  if (!repos.length) list.innerHTML = `<div class="empty">${q ? `No repositories match "${esc(forge.search)}".` : 'No repositories yet. Create your first one.'}</div>`;
+  if (!repos.length) {
+    list.outerHTML = `<div class="box"><div class="empty">${q ? `No repositories match "${esc(forge.search)}".` : 'No repositories yet. Create your first one.'}</div></div>`;
+    return;
+  }
   for (const r of repos) {
-    const row = html(`<div class="row h"><div style="flex:1;min-width:0"><a href="${link(r.name, 'code')}"><b>${esc(r.owner || 'you')}/${esc(r.name)}</b></a> <span class="pill">Public</span>
-      <div class="mute sm">${esc(r.description) || 'No description'}</div></div><span class="actions"></span></div>`);
-    list.append(row);
+    const owner = r.owner || 'you';
+    list.append(html(`<article class="card">
+      <div class="card-top">${avatar(owner)}<div class="card-name"><a href="${link(r.name, 'code')}"><span>${esc(owner)} /</span> ${esc(r.name)}</a><span class="pill">Public</span></div></div>
+      <p class="desc">${esc(r.description) || 'No description'}</p>
+      <div class="card-foot">
+        <span class="meta" title="Stars">${icons.star}${r.count || 0}</span>
+        <span class="meta" title="Open issues">${icons.issue}${r.openIssues || 0}</span>
+        <span class="meta" title="Open pull requests">${icons.pull}${r.openPulls || 0}</span>
+        <span class="sp"></span><span class="actions"></span>
+      </div></article>`));
     await forge.fillSlot('repo-actions', { repo: r }, list.lastElementChild.querySelector('.actions'));
   }
 }
@@ -159,8 +199,10 @@ async function repoView({ name, tab, query }) {
   const repo = await api('GET', `/api/repos/${encodeURIComponent(name)}`);
   const sorted = [...tabs].sort((a, b) => (a.order ?? 50) - (b.order ?? 50));
   const active = sorted.find(t => t.id === tab) || sorted[0];
-  app.innerHTML = `<h2 class="title"><span class="mute" style="font-weight:400">${repo.owner ? `<a href="#/~${encodeURIComponent(repo.owner)}">${esc(repo.owner)}</a>` : 'you'} /</span> ${esc(repo.name)} <span class="pill">Public</span><span class="sp"></span><span class="actions"></span></h2>
-    <p class="mute" style="margin:6px 0 0">${esc(repo.description) || 'No description'}</p>
+  const owner = repo.owner || 'you';
+  app.innerHTML = `<div class="repo-head">${avatar(owner, 'lg')}<div class="repo-id">
+      <h2 class="title">${repo.owner ? `<a href="#/~${encodeURIComponent(repo.owner)}">${esc(repo.owner)}</a>` : 'you'}<span class="slash">/</span>${esc(repo.name)} <span class="pill">Public</span></h2>
+      <p class="desc">${esc(repo.description) || 'No description'}</p></div><span class="actions"></span></div>
     <div class="tabs" role="tablist">${sorted.map(t => `<a class="tab ${t === active ? 'on' : ''}" role="tab" href="${link(name, t.id)}">${esc(typeof t.label === 'function' ? t.label(repo) : t.label)}</a>`).join('')}</div>
     <div id="tab"></div>`;
   await forge.fillSlot('repo-actions', { repo }, app.querySelector('.actions'));
