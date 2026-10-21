@@ -44,6 +44,8 @@ Client (`forge`): `registerTab({id, label, order, render(el, {repo, query})})`,
 
 **Deleting a repo:** the owner opens the repo's Settings tab and types its name to confirm (`DELETE /api/repos/:name?confirm=<name>`; collaborators can't). Core removes the bare repo and emits `repo:deleted`; stars, issues, pull requests, collaborators, owner records and profile entries clean themselves up, so a new repo with the same name starts fresh. Plugins that store per-repo data should listen for it (`app.store(ns).delete(key)` and `.keys()` exist for this).
 
+`plugins/issues` adds an Issues tab: issues have a title, markdown description, labels and a comment thread. The list filters by open/closed, label and text; each issue has its own page (`?issue=N`). Anyone logged in can open issues and comment, and delete their own comments; the author or anyone who can push can edit and close/reopen; only people who can push set labels or delete others' comments. Emits `issue:created`, `issue:commented`, `issue:closed` and `issue:reopened`.
+
 See `plugins/issues` (new tab + routes) and `plugins/stars` (decorator + UI slot), `plugins/clone` (raw protocol route + Clone button).
 
 ## Cloning
