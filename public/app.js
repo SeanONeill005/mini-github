@@ -186,7 +186,7 @@ addEventListener('hashchange', route);
 // ---------- chrome: search, theme, new-repo dialog ----------
 $('#gs').oninput = e => { forge.search = e.target.value; location.hash.length > 2 ? (location.hash = '#/') : route(); };
 $('#th').onclick = () => {
-  const r = document.documentElement, dark = getComputedStyle(r).getPropertyValue('--bg').trim() === '#12161c';
+  const r = document.documentElement, dark = getComputedStyle(r).getPropertyValue('--dark').trim() === '1';
   r.dataset.theme = dark ? 'light' : 'dark';
   try { localStorage.setItem('forge-theme', r.dataset.theme); } catch { /* storage unavailable */ }
 };
